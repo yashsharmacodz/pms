@@ -185,6 +185,7 @@ const SUBTASK_DEV_STATUSES = [
   "Not Done/Failed",
   "Improvement",
   "Regenerated",
+  "Will Discuss",
 ] as const;
 
 const SUBTASK_DEV_STATUS_STYLES: Record<string, { dot: string; cls: string }> =
@@ -220,6 +221,10 @@ const SUBTASK_DEV_STATUS_STYLES: Record<string, { dot: string; cls: string }> =
     Regenerated: {
       dot: "bg-cyan-500",
       cls: "bg-cyan-500/10 text-cyan-700 dark:bg-cyan-500/15 dark:text-cyan-400",
+    },
+    "Will Discuss": {
+      dot: "bg-orange-500",
+      cls: "bg-orange-500/10 text-orange-700 dark:bg-orange-500/15 dark:text-orange-400",
     },
   };
 
@@ -4777,9 +4782,25 @@ function SubtaskPanel({
     window.localStorage.setItem(SUBTASK_FILTER_KEY, statusFilter);
   }, [statusFilter]);
 
+  const DEV_STATUS_FILTER_KEY = "subtaskDevStatusFilter";
+  const [devStatusFilter, setDevStatusFilter] = useState<string>(() => {
+    if (typeof window === "undefined") return "all";
+    const stored = window.localStorage.getItem(DEV_STATUS_FILTER_KEY);
+    return stored && (SUBTASK_DEV_STATUSES as readonly string[]).includes(stored)
+      ? stored
+      : "all";
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(DEV_STATUS_FILTER_KEY, devStatusFilter);
+  }, [devStatusFilter]);
+
   const visibleSubtasks = subtasks.filter((s) => {
-    if (statusFilter === "done") return s.completed;
-    if (statusFilter === "working") return !s.completed;
+    if (statusFilter === "done" && !s.completed) return false;
+    if (statusFilter === "working" && s.completed) return false;
+    if (devStatusFilter !== "all" && (s.completedbydeveloper ?? "New") !== devStatusFilter)
+      return false;
     return true;
   });
 
@@ -4955,6 +4976,43 @@ function SubtaskPanel({
               {label}
             </button>
           ))}
+          <Select value={devStatusFilter} onValueChange={setDevStatusFilter}>
+            <SelectTrigger
+              size="sm"
+              className="h-7 w-auto gap-1.5 rounded-full border-border/60 px-2.5 text-[11px] font-medium shadow-none"
+              aria-label="Filter by dev status"
+            >
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              {SUBTASK_DEV_STATUSES.map((st) => (
+                <SelectItem key={st} value={st}>
+                  <span className="flex items-center gap-2">
+                    <span
+                      className={cn(
+                        "size-1.5 rounded-full",
+                        SUBTASK_DEV_STATUS_STYLES[st].dot,
+                      )}
+                    />
+                    {st}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {(statusFilter !== "all" || devStatusFilter !== "all") && (
+            <button
+              type="button"
+              onClick={() => {
+                setStatusFilter("all");
+                setDevStatusFilter("all");
+              }}
+              className="ml-auto inline-flex items-center gap-1 rounded-full border border-rose-500 px-2.5 py-1 text-[11px] font-medium text-rose-600 hover:bg-rose-500/10 dark:text-rose-400"
+            >
+              <X className="size-3" /> Clear
+            </button>
+          )}
         </div>
       )}
       <div className="px-4 py-3 sm:px-6">
